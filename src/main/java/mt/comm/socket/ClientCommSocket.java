@@ -129,7 +129,6 @@ public class ClientCommSocket {
 					clientMessages = null;
 				} catch (IOException e1) {
 					System.out.println("ClientComm >> An error has occurred while releasing resources due to :" + CommUtils.getCause(e));
-					System.out.println("Exceção tratada com sucesso");
 				}
 			}
 		}

@@ -23,7 +23,7 @@ import org.mockito.runners.MockitoJUnitRunner;
 @RunWith(MockitoJUnitRunner.class)
 public class MicroServerTest {
  
-	// CU BIXO!!!!
+	
 	private MicroServer ms;
 	
 	@Mock

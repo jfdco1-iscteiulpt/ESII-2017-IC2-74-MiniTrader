@@ -40,7 +40,9 @@ public class MicroTraderClientImpl implements MicroTraderClient {
 			java.util.logging.Logger.getLogger(MicroTraderClientUI.class.getName()).log(java.util.logging.Level.SEVERE,
 					null, ex);
 		}
-
+		
+		//COMENTARIO COMENTARIO
+		
 		Logger.getLogger(this.getClass().getName()).log(Level.INFO, "Starting the user interface.");
 		MicroTraderClientUI ui = new MicroTraderClientUI();
 		Session.clientComm = clientComm;

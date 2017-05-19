@@ -120,11 +120,16 @@ public class MicroServer implements MicroTraderServer {
 				case NEW_ORDER:
 					try {
 						verifyUserConnected(msg);
+						
+						Order order = msg.getOrder();
+						
 						if(msg.getOrder().getServerOrderID() == EMPTY){
 							msg.getOrder().setServerOrderID(id++);
 						}
-						notifyAllClients(msg.getOrder());
-						processNewOrder(msg);
+						if(checkQuantity(order) && checkUnfufiledOrders(order)){
+							notifyAllClients(msg.getOrder());
+							processNewOrder(msg);
+						}
 					} catch (ServerException e) {
 						serverComm.sendError(msg.getSenderNickname(), e.getMessage());
 					}

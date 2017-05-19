@@ -395,6 +395,26 @@ public class MicroServer implements MicroTraderServer {
 	}
 	
 	/**
+	 * Check if the quantity of the client's order is above or equal to 10 or else sends a error to the order's sender
+	 * @param order is the order that the sender has just sent to the server
+	 * @return
+	 * 			true if quantity is above or equal than 10
+	 * 			false if quantity is less than 10
+	 */
+	private boolean checkQuantity(Order order) {
+
+		if (order.getNumberOfUnits() >= 10) {
+			return true;
+		} else {
+			serverComm.sendError(order.getNickname(), "Order can't never be lower than 10 units");
+			return false;
+		}
+	}
+	
+	
+	
+	
+	/**
 	 * Check if the client has more than five unfulfilled orders, if the does sends a error to the client 
 	 * @param order is the order that the sender has just sent to the server
 	 * @return
@@ -435,6 +455,11 @@ public class MicroServer implements MicroTraderServer {
 	
 	//XmlProject
 	
+	/**
+	 * Record all the transactions in an XML document without sellers/buyers identification                      
+	 * @param o is the order that the sender has just sent to the server
+	 * 		
+	 */
 	public static void xml(Order o){
 		try {	
 	         File inputFile = new File("MicroTraderPersistence.xml");

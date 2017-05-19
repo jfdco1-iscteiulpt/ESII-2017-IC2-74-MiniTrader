@@ -55,6 +55,7 @@ public class MicroServer implements MicroTraderServer {
 	}
 
 	public static final Logger LOGGER = Logger.getLogger(MicroServer.class.getName());
+	private final static int MAX_UNFUlFILED_ORDERS = 5;
 
 	/**
 	 * Server communication
@@ -392,6 +393,45 @@ public class MicroServer implements MicroTraderServer {
 			}
 		}
 	}
+	
+	/**
+	 * Check if the client has more than five unfulfilled orders, if the does sends a error to the client 
+	 * @param order is the order that the sender has just sent to the server
+	 * @return
+	 * 			true if the client has less than five unfulfilled orders
+	 * 			false if the client has up or equal to the 10 orders
+	 */
+	private boolean checkUnfufiledOrders(Order order) {
+
+		boolean podePassar = true;
+
+		if (order.isSellOrder() && orderMap.containsKey(order.getNickname())) {
+
+			Set<Order> ClientOrders = orderMap.get(order.getNickname());
+
+			int numberOfUnfulfilledOrders = 0;
+
+			for (Order o : ClientOrders) {
+
+				if (o.isSellOrder() == true)
+					numberOfUnfulfilledOrders++;
+
+			}
+
+			System.out.println("NUMBER OF UNFULFILLED ORDERS: " + numberOfUnfulfilledOrders);
+
+			if (numberOfUnfulfilledOrders >= MAX_UNFUlFILED_ORDERS)
+				podePassar = false;
+
+		}
+
+		if (!podePassar)
+			serverComm.sendError(order.getNickname(), "Sellers can't have more than 5 unfufilled Orders");
+
+		return podePassar;
+
+	}
+	
 	
 	//XmlProject
 	

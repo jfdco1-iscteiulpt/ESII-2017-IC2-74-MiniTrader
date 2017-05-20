@@ -416,7 +416,7 @@ public class MicroServer implements MicroTraderServer {
 		if (order.getNumberOfUnits() >= 10) {
 			return true;
 		} else {
-			serverComm.sendError(order.getNickname(), "Order can't never be lower than 10 units");
+			LOGGER.log(Level.INFO, "Order can't never be lower than 10 units");
 			return false;
 		}
 	}

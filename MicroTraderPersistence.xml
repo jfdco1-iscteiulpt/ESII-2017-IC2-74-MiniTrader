@@ -6,4 +6,7 @@
 <Order Id="1" Price="4.0" Stock="porto" Type="Sell" Units="54">
 <Customer>Francisco</Customer>
 </Order>
+<Order Id="1" Price="174.0" Stock="Zenfone2" Type="Sell" Units="20">
+<Customer>Teles</Customer>
+</Order>
 </XML>

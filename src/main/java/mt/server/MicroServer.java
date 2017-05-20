@@ -39,19 +39,17 @@ import mt.comm.impl.ServerCommImpl;
 import mt.exception.ServerException;
 import mt.filter.AnalyticsFilter;
 
-
 // MINITRADER Vers�o Americana
 
-
 /**
- * MicroTraderServer implementation. This class should be responsible
- * to do the business logic of stock transactions between buyers and sellers.
+ * MicroTraderServer implementation. This class should be responsible to do the
+ * business logic of stock transactions between buyers and sellers.
  * 
  * @author Group 78
  *
  */
 public class MicroServer implements MicroTraderServer {
-	
+
 	public static void main(String[] args) {
 		ServerComm serverComm = new AnalyticsFilter(new ServerCommImpl());
 		MicroTraderServer server = new MicroServer();
@@ -79,7 +77,7 @@ public class MicroServer implements MicroTraderServer {
 	 * Order Server ID
 	 */
 	private static int id = 1;
-	
+
 	/** The value is {@value #EMPTY} */
 	public static final int EMPTY = 0;
 
@@ -95,7 +93,7 @@ public class MicroServer implements MicroTraderServer {
 	@Override
 	public void start(ServerComm serverComm) {
 		serverComm.start();
-		
+
 		LOGGER.log(Level.INFO, "Starting Server...");
 
 		this.serverComm = serverComm;
@@ -103,88 +101,93 @@ public class MicroServer implements MicroTraderServer {
 		ServerSideMessage msg = null;
 		while ((msg = serverComm.getNextMessage()) != null) {
 			ServerSideMessage.Type type = msg.getType();
-			
-			if(type == null){
+
+			if (type == null) {
 				serverComm.sendError(null, "Type was not recognized");
 				continue;
 			}
 
 			switch (type) {
-				case CONNECTED:
-					try{
-						processUserConnected(msg);
-					}catch (ServerException e) {
-						serverComm.sendError(msg.getSenderNickname(), e.getMessage());
+			case CONNECTED:
+				try {
+					processUserConnected(msg);
+				} catch (ServerException e) {
+					serverComm.sendError(msg.getSenderNickname(), e.getMessage());
+				}
+				break;
+			case DISCONNECTED:
+				processUserDisconnected(msg);
+				break;
+			case NEW_ORDER:
+				try {
+					verifyUserConnected(msg);
+					Order order = msg.getOrder();
+					if (msg.getOrder().getServerOrderID() == EMPTY) {
+						msg.getOrder().setServerOrderID(id++);
 					}
-					break;
-				case DISCONNECTED:
-					processUserDisconnected(msg);
-					break;
-				case NEW_ORDER:
-					try {
-						verifyUserConnected(msg);
-						if(msg.getOrder().getServerOrderID() == EMPTY){
-							msg.getOrder().setServerOrderID(id++);
-						}
+					if(checkQuantity(order)){
 						notifyAllClients(msg.getOrder());
 						processNewOrder(msg);
-					} catch (ServerException e) {
-						serverComm.sendError(msg.getSenderNickname(), e.getMessage());
 					}
-					break;
-				default:
-					break;
+				} catch (ServerException e) {
+					serverComm.sendError(msg.getSenderNickname(), e.getMessage());
 				}
+				break;
+			default:
+				break;
+			}
 		}
 		LOGGER.log(Level.INFO, "Shutting Down Server...");
 	}
-
 
 	/**
 	 * Verify if user is already connected
 	 * 
 	 * @param msg
-	 * 			the message sent by the client
+	 *            the message sent by the client
 	 * @throws ServerException
-	 * 			exception thrown by the server indicating that the user is not connected
+	 *             exception thrown by the server indicating that the user is
+	 *             not connected
 	 */
 	private void verifyUserConnected(ServerSideMessage msg) throws ServerException {
 		for (Entry<String, Set<Order>> entry : orderMap.entrySet()) {
-			if(entry.getKey().equals(msg.getSenderNickname())){
+			if (entry.getKey().equals(msg.getSenderNickname())) {
 				return;
 			}
 		}
 		throw new ServerException("The user " + msg.getSenderNickname() + " is not connected.");
-		
+
 	}
 
 	/**
 	 * Process the user connection
 	 * 
 	 * @param msg
-	 * 			  the message sent by the client
+	 *            the message sent by the client
 	 * 
 	 * @throws ServerException
-	 * 			exception thrown by the server indicating that the user is already connected
+	 *             exception thrown by the server indicating that the user is
+	 *             already connected
 	 */
 	private void processUserConnected(ServerSideMessage msg) throws ServerException {
 		LOGGER.log(Level.INFO, "Connecting client " + msg.getSenderNickname() + "...");
-		
+
 		// verify if user is already connected
 		for (Entry<String, Set<Order>> entry : orderMap.entrySet()) {
-			if(entry.getKey().equals(msg.getSenderNickname())){
+			if (entry.getKey().equals(msg.getSenderNickname())) {
 				throw new ServerException("The user " + msg.getSenderNickname() + " is already connected.");
 			}
 		}
-		
+
 		// register the new user
 		orderMap.put(msg.getSenderNickname(), new HashSet<Order>());
-		
+
 		notifyClientsOfCurrentActiveOrders(msg);
 	}
-	
+
 	/**
 	 * Send current active orders sorted by server ID ASC
+	 * 
 	 * @param msg
 	 */
 	private void notifyClientsOfCurrentActiveOrders(ServerSideMessage msg) {
@@ -196,7 +199,7 @@ public class MicroServer implements MicroTraderServer {
 				ordersToSend.add(order);
 			}
 		}
-		
+
 		// sort the orders to send to clients by server id
 		Collections.sort(ordersToSend, new Comparator<Order>() {
 			@Override
@@ -204,8 +207,8 @@ public class MicroServer implements MicroTraderServer {
 				return o1.getServerOrderID() < o2.getServerOrderID() ? -1 : 1;
 			}
 		});
-		
-		for(Order order : ordersToSend){
+
+		for (Order order : ordersToSend) {
 			serverComm.sendOrder(msg.getSenderNickname(), order);
 		}
 	}
@@ -214,14 +217,14 @@ public class MicroServer implements MicroTraderServer {
 	 * Process the user disconnection
 	 * 
 	 * @param msg
-	 * 			  the message sent by the client
+	 *            the message sent by the client
 	 */
 	private void processUserDisconnected(ServerSideMessage msg) {
-		LOGGER.log(Level.INFO, "Disconnecting client " + msg.getSenderNickname()+ "...");
-		
-		//remove the client orders
+		LOGGER.log(Level.INFO, "Disconnecting client " + msg.getSenderNickname() + "...");
+
+		// remove the client orders
 		orderMap.remove(msg.getSenderNickname());
-		
+
 		// notify all clients of current unfulfilled orders
 		for (Entry<String, Set<Order>> entry : orderMap.entrySet()) {
 			Set<Order> orders = entry.getValue();
@@ -241,7 +244,7 @@ public class MicroServer implements MicroTraderServer {
 		LOGGER.log(Level.INFO, "Processing new order...");
 
 		Order o = msg.getOrder();
-		
+
 		// save the order on map
 		saveOrder(o);
 		xml(o);
@@ -250,7 +253,7 @@ public class MicroServer implements MicroTraderServer {
 		if (o.isBuyOrder()) {
 			processBuy(msg.getOrder());
 		}
-		
+
 		// if is sell order
 		if (o.isSellOrder()) {
 			processSell(msg.getOrder());
@@ -266,52 +269,56 @@ public class MicroServer implements MicroTraderServer {
 		updatedOrders = new HashSet<>();
 
 	}
-	
+
 	/**
 	 * Store the order on map
 	 * 
 	 * @param o
-	 * 			the order to be stored on map
+	 *            the order to be stored on map
 	 */
 	private void saveOrder(Order o) {
 		LOGGER.log(Level.INFO, "Storing the new order...");
-		
-		//save order on map
+
+		// save order on map
 		Set<Order> orders = orderMap.get(o.getNickname());
-		orders.add(o);		
+		orders.add(o);
 	}
 
 	/**
 	 * Process the sell order
 	 * 
 	 * @param sellOrder
-	 * 		Order sent by the client with a number of units of a stock and the price per unit he wants to sell
+	 *            Order sent by the client with a number of units of a stock and
+	 *            the price per unit he wants to sell
 	 */
-	private void processSell(Order sellOrder){
+	private void processSell(Order sellOrder) {
 		LOGGER.log(Level.INFO, "Processing sell order...");
-		
+
 		for (Entry<String, Set<Order>> entry : orderMap.entrySet()) {
 			for (Order o : entry.getValue()) {
-				if (o.isBuyOrder() && o.getStock().equals(sellOrder.getStock()) && o.getPricePerUnit() >= sellOrder.getPricePerUnit()) {
-					doTransaction (o, sellOrder);
+				if (o.isBuyOrder() && o.getStock().equals(sellOrder.getStock())
+						&& o.getPricePerUnit() >= sellOrder.getPricePerUnit()) {
+					doTransaction(o, sellOrder);
 				}
 			}
 		}
-		
+
 	}
-	
+
 	/**
 	 * Process the buy order
 	 * 
 	 * @param buyOrder
-	 *          Order sent by the client with a number of units of a stock and the price per unit he wants to buy
+	 *            Order sent by the client with a number of units of a stock and
+	 *            the price per unit he wants to buy
 	 */
 	private void processBuy(Order buyOrder) {
 		LOGGER.log(Level.INFO, "Processing buy order...");
 
 		for (Entry<String, Set<Order>> entry : orderMap.entrySet()) {
 			for (Order o : entry.getValue()) {
-				if (o.isSellOrder() && buyOrder.getStock().equals(o.getStock()) && o.getPricePerUnit() <= buyOrder.getPricePerUnit()) {
+				if (o.isSellOrder() && buyOrder.getStock().equals(o.getStock())
+						&& o.getPricePerUnit() <= buyOrder.getPricePerUnit()) {
 					doTransaction(buyOrder, o);
 				}
 			}
@@ -322,62 +329,67 @@ public class MicroServer implements MicroTraderServer {
 	/**
 	 * Process the transaction between buyer and seller
 	 * 
-	 * @param buyOrder 		Order sent by the client with a number of units of a stock and the price per unit he wants to buy 
-	 * @param sellerOrder	Order sent by the client with a number of units of a stock and the price per unit he wants to sell
+	 * @param buyOrder
+	 *            Order sent by the client with a number of units of a stock and
+	 *            the price per unit he wants to buy
+	 * @param sellerOrder
+	 *            Order sent by the client with a number of units of a stock and
+	 *            the price per unit he wants to sell
 	 */
 	private void doTransaction(Order buyOrder, Order sellerOrder) {
 		LOGGER.log(Level.INFO, "Processing transaction between seller and buyer...");
 
 		if (buyOrder.getNumberOfUnits() >= sellerOrder.getNumberOfUnits()) {
-			buyOrder.setNumberOfUnits(buyOrder.getNumberOfUnits()
-					- sellerOrder.getNumberOfUnits());
+			buyOrder.setNumberOfUnits(buyOrder.getNumberOfUnits() - sellerOrder.getNumberOfUnits());
 			sellerOrder.setNumberOfUnits(EMPTY);
 		} else {
-			sellerOrder.setNumberOfUnits(sellerOrder.getNumberOfUnits()
-					- buyOrder.getNumberOfUnits());
+			sellerOrder.setNumberOfUnits(sellerOrder.getNumberOfUnits() - buyOrder.getNumberOfUnits());
 			buyOrder.setNumberOfUnits(EMPTY);
 		}
-		
+
 		updatedOrders.add(buyOrder);
 		updatedOrders.add(sellerOrder);
 	}
-	
+
 	/**
 	 * Notifies clients about a changed order
 	 * 
 	 * @throws ServerException
-	 * 			exception thrown in the method notifyAllClients, in case there's no order
+	 *             exception thrown in the method notifyAllClients, in case
+	 *             there's no order
 	 */
 	private void notifyClientsOfChangedOrders() throws ServerException {
 		LOGGER.log(Level.INFO, "Notifying client about the changed order...");
-		for (Order order : updatedOrders){
+		for (Order order : updatedOrders) {
 			notifyAllClients(order);
 		}
 	}
-	
+
 	/**
 	 * Notifies all clients about a new order
 	 * 
-	 * @param order refers to a client buy order or a sell order
+	 * @param order
+	 *            refers to a client buy order or a sell order
 	 * @throws ServerException
-	 * 				exception thrown by the server indicating that there is no order
-	 */			
+	 *             exception thrown by the server indicating that there is no
+	 *             order
+	 */
 	private void notifyAllClients(Order order) throws ServerException {
 		LOGGER.log(Level.INFO, "Notifying clients about the new order...");
-		if(order == null){
+		if (order == null) {
 			throw new ServerException("There was no order in the message");
 		}
 		for (Entry<String, Set<Order>> entry : orderMap.entrySet()) {
-			serverComm.sendOrder(entry.getKey(), order); 
+			serverComm.sendOrder(entry.getKey(), order);
 		}
 	}
-	
+
 	/**
 	 * Remove fulfilled orders
 	 */
 	private void removeFulfilledOrders() {
 		LOGGER.log(Level.INFO, "Removing fulfilled orders...");
-		
+
 		// remove fulfilled orders
 		for (Entry<String, Set<Order>> entry : orderMap.entrySet()) {
 			Iterator<Order> it = entry.getValue().iterator();
@@ -389,89 +401,111 @@ public class MicroServer implements MicroTraderServer {
 			}
 		}
 	}
-	
+
 	/**
-	 * Record all the transactions in an XML document with sellers/buyers identification                      
-	 * @param o is the order that the sender has just sent to the server
-	 * 		
+	 * Check if the quantity of the client's order is above or equal to 10 or
+	 * else sends a error to the order's sender
+	 * 
+	 * @param order
+	 *            is the order that the sender has just sent to the server
+	 * @return true if quantity is above or equal than 10 false if quantity is
+	 *         less than 10
 	 */
-	public static void xml(Order o){
-		try {	
-	         File inputFile = new File("MicroTraderPersistence.xml");
-	         DocumentBuilderFactory dbFactory = DocumentBuilderFactory.newInstance();
-	         DocumentBuilder dBuilder = dbFactory.newDocumentBuilder();
-	         Document doc = dBuilder.parse(inputFile);
-	         doc.getDocumentElement().normalize();         
-	         NodeList nList = doc.getElementsByTagName("Order");
-	         System.out.println("----- Navigate the tree nodes -----");
-	         for (int temp = 0; temp < nList.getLength(); temp++) {
-	            Node nNode = nList.item(temp);
-	            System.out.print(nNode.getNodeName() + " ");
-	            if (nNode.getNodeType() == Node.ELEMENT_NODE) {
-	               Element eElement = (Element) nNode;
-	               System.out.print("Id:" + eElement.getAttribute("Id"));
-	               System.out.print(" Type:" + eElement.getAttribute("Type"));
-	               System.out.print(" Stock:" + eElement.getAttribute("Stock"));
-	               System.out.print(" Units:" + eElement.getAttribute("Units"));
-	               System.out.print(" Price:" + eElement.getAttribute("Price"));
-	               System.out.println();
-	            }
-	         }
-	         System.out.println("----- Search the tree with xpath queries -----");  
-	         // Query 1 
-	         XPathFactory xpathFactory = XPathFactory.newInstance();
-	         XPath xpath = xpathFactory.newXPath();
-	         XPathExpression expr = xpath.compile("/XML/Order[@Id='2']/@*");
-	         NodeList nl = (NodeList) expr.evaluate(doc, XPathConstants.NODESET);
-	         System.out.print("Order ");
-	         for (int i = 0; i < nl.getLength(); i++) {
-	             System.out.print(nl.item(i).getNodeName()  + ":");
-	             System.out.print(nl.item(i).getFirstChild().getNodeValue()  + " ");
-	         }
-	         // Query 2
-	         expr = xpath.compile("/XML/Order[@Id='2']/Customer");
-	         String str = (String) expr.evaluate(doc, XPathConstants.STRING);
-	         System.out.println();System.out.println("Customer of Order Id=5: " + str);
-	         
-	         // Create new element Order with attributes
-	         Element newElementOrder = doc.createElement("Order");
-	         
-	         newElementOrder.setAttribute("Id", String.valueOf(o.getServerOrderID()));
-	         
-	         if(o.isBuyOrder()){
-	        	 newElementOrder.setAttribute("Type", "Buy");
-	         }
-	         else{
-	        	 newElementOrder.setAttribute("Type", "Sell");
-	         }
-	         
-	         newElementOrder.setAttribute("Stock", o.getStock());
-	         newElementOrder.setAttribute("Units", String.valueOf(o.getNumberOfUnits()));
-	         newElementOrder.setAttribute("Price", String.valueOf(o.getPricePerUnit()));
+	private boolean checkQuantity(Order order) {
 
-	         // Create new element Customer
-	         Element newElementCustomer = doc.createElement("Customer");
-
-	         newElementCustomer.setTextContent(o.getNickname()); 
-	         newElementOrder.appendChild(newElementCustomer);
-	         
-	         // Add new node to XML document root element
-	         System.out.println("----- Adding new element to root element -----");
-	         System.out.println("Root element :" + doc.getDocumentElement().getNodeName());         
-	         System.out.println("Add Order Id='5' Type='Buy' Stock='PT' Units='15' Price='20'");
-	         Node n = doc.getDocumentElement();
-	         n.appendChild(newElementOrder);
-	         // Save XML document
-	         System.out.println("Save XML document.");
-	         Transformer transformer = TransformerFactory.newInstance().newTransformer();
-	         transformer.setOutputProperty(OutputKeys.INDENT, "yes");
-	         StreamResult result = new StreamResult(new FileOutputStream("MicroTraderPersistence.xml"));
-	         DOMSource source = new DOMSource(doc);
-	         transformer.transform(source, result);
-	      } catch (Exception e) { e.printStackTrace(); }
-	   	
+		if (order.getNumberOfUnits() >= 10) {
+			return true;
+		} else {
+			serverComm.sendError(order.getNickname(), "Order can't never be lower than 10 units");
+			return false;
+		}
 	}
-	
-	
+
+	/**
+	 * Record all the transactions in an XML document with sellers/buyers
+	 * identification
+	 * 
+	 * @param o
+	 *            is the order that the sender has just sent to the server
+	 * 
+	 */
+	public static void xml(Order o) {
+		try {
+			File inputFile = new File("MicroTraderPersistence.xml");
+			DocumentBuilderFactory dbFactory = DocumentBuilderFactory.newInstance();
+			DocumentBuilder dBuilder = dbFactory.newDocumentBuilder();
+			Document doc = dBuilder.parse(inputFile);
+			doc.getDocumentElement().normalize();
+			NodeList nList = doc.getElementsByTagName("Order");
+			System.out.println("----- Navigate the tree nodes -----");
+			for (int temp = 0; temp < nList.getLength(); temp++) {
+				Node nNode = nList.item(temp);
+				System.out.print(nNode.getNodeName() + " ");
+				if (nNode.getNodeType() == Node.ELEMENT_NODE) {
+					Element eElement = (Element) nNode;
+					System.out.print("Id:" + eElement.getAttribute("Id"));
+					System.out.print(" Type:" + eElement.getAttribute("Type"));
+					System.out.print(" Stock:" + eElement.getAttribute("Stock"));
+					System.out.print(" Units:" + eElement.getAttribute("Units"));
+					System.out.print(" Price:" + eElement.getAttribute("Price"));
+					System.out.println();
+				}
+			}
+			System.out.println("----- Search the tree with xpath queries -----");
+			// Query 1
+			XPathFactory xpathFactory = XPathFactory.newInstance();
+			XPath xpath = xpathFactory.newXPath();
+			XPathExpression expr = xpath.compile("/XML/Order[@Id='2']/@*");
+			NodeList nl = (NodeList) expr.evaluate(doc, XPathConstants.NODESET);
+			System.out.print("Order ");
+			for (int i = 0; i < nl.getLength(); i++) {
+				System.out.print(nl.item(i).getNodeName() + ":");
+				System.out.print(nl.item(i).getFirstChild().getNodeValue() + " ");
+			}
+			// Query 2
+			expr = xpath.compile("/XML/Order[@Id='2']/Customer");
+			String str = (String) expr.evaluate(doc, XPathConstants.STRING);
+			System.out.println();
+			System.out.println("Customer of Order Id=5: " + str);
+
+			// Create new element Order with attributes
+			Element newElementOrder = doc.createElement("Order");
+
+			newElementOrder.setAttribute("Id", String.valueOf(o.getServerOrderID()));
+
+			if (o.isBuyOrder()) {
+				newElementOrder.setAttribute("Type", "Buy");
+			} else {
+				newElementOrder.setAttribute("Type", "Sell");
+			}
+
+			newElementOrder.setAttribute("Stock", o.getStock());
+			newElementOrder.setAttribute("Units", String.valueOf(o.getNumberOfUnits()));
+			newElementOrder.setAttribute("Price", String.valueOf(o.getPricePerUnit()));
+
+			// Create new element Customer
+			Element newElementCustomer = doc.createElement("Customer");
+
+			newElementCustomer.setTextContent(o.getNickname());
+			newElementOrder.appendChild(newElementCustomer);
+
+			// Add new node to XML document root element
+			System.out.println("----- Adding new element to root element -----");
+			System.out.println("Root element :" + doc.getDocumentElement().getNodeName());
+			System.out.println("Add Order Id='5' Type='Buy' Stock='PT' Units='15' Price='20'");
+			Node n = doc.getDocumentElement();
+			n.appendChild(newElementOrder);
+			// Save XML document
+			System.out.println("Save XML document.");
+			Transformer transformer = TransformerFactory.newInstance().newTransformer();
+			transformer.setOutputProperty(OutputKeys.INDENT, "yes");
+			StreamResult result = new StreamResult(new FileOutputStream("MicroTraderPersistence.xml"));
+			DOMSource source = new DOMSource(doc);
+			transformer.transform(source, result);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+
+	}
 
 }

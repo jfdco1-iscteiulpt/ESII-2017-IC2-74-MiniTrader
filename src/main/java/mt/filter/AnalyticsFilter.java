@@ -47,7 +47,7 @@ public class AnalyticsFilter implements ServerComm {
 				} else {
 					List<Long> list1 = map.get(nickname);
 					if (list1.size() == 3) {
-						if (System.currentTimeMillis() - list1.get(0) <= 80000) {
+						if (System.currentTimeMillis() - list1.get(0) <= 10000) {
 							if (clientIsConnected(nickname)) {
 								disconnectClient(nickname);
 								map.remove(nickname);

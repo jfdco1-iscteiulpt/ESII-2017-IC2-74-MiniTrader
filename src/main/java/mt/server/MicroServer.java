@@ -428,8 +428,10 @@ public class MicroServer implements MicroTraderServer {
 
 				// SEND ERROR MESSAGE
 
-				serverComm.sendError(order.getNickname(), "Can´t Buy/Sell own Buy/Sell Order");
+				//serverComm.sendError(order.getNickname(), "Can´t Buy/Sell own Buy/Sell Order");
 
+				LOGGER.log(Level.INFO, "Can´t Buy/Sell own Buy/Sell Order");
+				
 			}
 
 		}
@@ -449,7 +451,8 @@ public class MicroServer implements MicroTraderServer {
 		if (order.getNumberOfUnits() >= 10) {
 			return true;
 		} else {
-			serverComm.sendError(order.getNickname(), "Order can't never be lower than 10 units");
+			//serverComm.sendError(order.getNickname(), "Order can't never be lower than 10 units");
+			LOGGER.log(Level.INFO, "Order can't never be lower than 10 units");
 			return false;
 		}
 	}
@@ -486,7 +489,8 @@ public class MicroServer implements MicroTraderServer {
 		}
 
 		if (!podePassar)
-			serverComm.sendError(order.getNickname(), "Sellers can't have more than 5 unfufilled Orders");
+			LOGGER.log(Level.INFO, "Sellers can't have more than 5 unfufilled Orders");
+			
 
 		return podePassar;
 
